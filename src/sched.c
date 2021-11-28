@@ -24,6 +24,17 @@ struct pcb_t * get_proc(void) {
 	 * [ready_queue] and return the highest priority one.
 	 * Remember to use lock to protect the queue.
 	 * */
+	if (empty(&ready_queue)) {
+		// move a l l p r o c e s s i s w a i t i n g i n run_queue back t o ready_queue
+		while (!empty(&run_queue)) {
+			enqueue(&ready_queue, dequeue(&run_queue));
+		}
+	}
+
+	if (!empty(&ready_queue)) {
+		proc = dequeue(&ready_queue);
+	}
+	pthread_mutex_unlock(&queue_lock);
 	return proc;
 }
 
