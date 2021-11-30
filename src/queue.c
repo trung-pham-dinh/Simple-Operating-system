@@ -28,7 +28,7 @@ struct pcb_t * dequeue(struct queue_t * q) {
 		//struct pcb_t * maxPCB = (struct pcb_t *)malloc(sizeof(struct pcb_t));
 		struct pcb_t * maxPCB = q->proc[max_i];
 
-		for (int i = max_i; i < q->(size-1); i++){
+		for (int i = max_i; i < q->size-1; i++){
 			q->proc[i] = q->proc[i + 1]; 
 		}
 		q->proc[q->size - 1] = NULL;
