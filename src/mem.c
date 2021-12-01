@@ -3,6 +3,7 @@
 #include "string.h"
 #include <pthread.h>
 #include <stdio.h>
+#include "common.h"
 
 static BYTE _ram[RAM_SIZE];
 
@@ -108,7 +109,6 @@ static int translate(
 
 addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 {
-
 	pthread_mutex_lock(&mem_lock);
 	addr_t ret_mem = 0;
 	/* TODO: Allocate [size] byte in the memory for the
@@ -117,9 +117,8 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 	 * */
 
 	// it should be like this?
-	// uint32_t num_pages = (size % PAGE_SIZE) ? size / PAGE_SIZE + 1:
-	// 	size / PAGE_SIZE;
-	uint32_t num_pages = (size % PAGE_SIZE) ? size / PAGE_SIZE : size / PAGE_SIZE + 1; // Number of pages we will use
+	uint32_t num_pages = (size % PAGE_SIZE) ? size / PAGE_SIZE + 1: size / PAGE_SIZE;
+	//uint32_t num_pages = (size % PAGE_SIZE) ? size / PAGE_SIZE : size / PAGE_SIZE + 1; // Number of pages we will use
 	int mem_avail = 0;																   // We could allocate new memory region or not?
 
 	/* First we must check if the amount of free memory in
