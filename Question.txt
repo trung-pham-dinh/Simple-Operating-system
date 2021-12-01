@@ -1,0 +1,49 @@
+Question: What is the advantage of using priority feedback queue in comparison with other scheduling
+algorithms you have learned such as FIFO, Round Robin? Explain clearly your answer
+
+Compared to FIFO, Round Robin: 
+We can exploit the priority of processes with Priority feedback queue but cannot with FIFO and RR because FIFO and RR just considers the order of arrival of each process to the queue. 
+	Priority feedback queue support preemption, which is switching the process. If there is a process with higher priority than the running process, the higher priority process will preempt the running process at the end of the time slice. This feature does not occur at FIFO.
+
+Compared to Priority Scheduling:
+	Priority feedback queue prevents the starvation of low-priority processes, because the higher priority processes just have a chance to be scheduled again only when the ready queue is empty (means that all the processes included the low priority processes have already been scheduled). In Priority scheduling, if high processes keep coming to the queue frequently, the low priority process may be starving.
+
+
+
+
+
+
+Question In which system is segmentation with paging used (give an example of at least one system)?
+Explain clearly the advantage and disadvantage of segmentation with paging.
+
+IA-32 system use segmentation with paging. Its segment is 4GB large.
+Advantage:
+	Reduce the memory usage compared to the paging technique. Because it can reduce the size of the page table which is stored in RAM. A program can be divided into segments and its segments has its page table. Therefore, the page table size will be reduced depend on the number of segments we divide.
+	Solve external fragmentation problem because it uses fix-sized of page for memory block. Every hole between allocated memory can be assigned to processes. It can be discontiguous because it has table for managing the page.
+	
+Disadvantage:
+	There is internal fragmentation. This case will occur when the memory required is not divisible by the page size. That is, a frame in RAM will not be used totally. For example, page size is 5 byte and program want to allocate 11 bytes, there will be 3 frames allocated in the RAM and there is a frame which is just need 1 byte of it.
+	More complex than paging technique because it requires the implementation of page table and segment table
+	Increase the memory access time because it has to access the segment table and the page table to reach the actual memory it needs.
+	Page table must be contiguous in the memory because we access the frame in RAM through the offset of the base address of the page table. This may lead to external fragmentation.
+
+
+
+
+
+
+Question What will be happen if the synchronization is not handled in your system? Illustrate the problem
+by example if you have any.
+
+	Firstly, the problem will occur with the queues (run queue and ready queue). There is a case when the ready queue is almost full (remain 1 slot) and there are two threads try to enqueue. The system may be crash. This problem can be like this:
+	Thread 1 check the queue (not full, remain 1 slot)
+	Thread 2 check the queue (not full, remain 1 slot)
+	Thread 1 enqueue (valid)
+	Thread 2 enqueue (error occurs because queue is full)
+
+	The same problem can occur with the case the queue is almost empty (1 item left).
+	
+	Secondly, the problem will occur with the memory. There will be conflicts in getting the allocated memory. For example, two threads try to allocate 1 page for itself. The first thread finds that page at location 0x00 have not been used and so does the second thread. Then, both threads decided to take that page for allocation. The result is that two processes will reference to the same memory block (we don’t want this).
+	There will be problem in deallocating memory. For example, thread A is try to set the flag to indicate that the page is free. Then, thread B sees that page is free, so it get that page to be allocated. However, thread A continues its job, which is remove the unused entries in page table and segment table of that page. Therefore, thread B will be fail when it tries to reference that page.
+
+	Thirdly, if we do not use the mutex, there is no way that the timer works. The timeslot keep increasing despite unfinished job.
