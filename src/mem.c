@@ -1,9 +1,8 @@
 #include "mem.h"
 #include "stdlib.h"
 #include "string.h"
-#include "common.h"
 #include <pthread.h>
-#include <stdio.h>
+#include <stdio.h>"
 
 static BYTE _ram[RAM_SIZE];
 
