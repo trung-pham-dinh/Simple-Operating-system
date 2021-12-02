@@ -1,6 +1,7 @@
 #include "mem.h"
 #include "stdlib.h"
 #include "string.h"
+#include "common.h"
 #include <pthread.h>
 #include <stdio.h>
 
@@ -83,6 +84,7 @@ static int translate(
 	addr_t second_lv = get_second_lv(virtual_addr);
 
 	/* Search in the first level */
+
 	struct page_table_t *page_table = NULL;
 	page_table = get_page_table(first_lv, proc->seg_table);
 	if (page_table == NULL)
@@ -108,7 +110,6 @@ static int translate(
 
 addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 {
-
 	pthread_mutex_lock(&mem_lock);
 	addr_t ret_mem = 0;
 	/* TODO: Allocate [size] byte in the memory for the
@@ -117,10 +118,9 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 	 * */
 
 	// it should be like this?
-	// uint32_t num_pages = (size % PAGE_SIZE) ? size / PAGE_SIZE + 1:
-	// 	size / PAGE_SIZE;
-	uint32_t num_pages = (size % PAGE_SIZE) ? size / PAGE_SIZE : size / PAGE_SIZE + 1; // Number of pages we will use
-	int mem_avail = 0;																   // We could allocate new memory region or not?
+	uint32_t num_pages = (size % PAGE_SIZE) ? size / PAGE_SIZE + 1 : size / PAGE_SIZE;
+	//uint32_t num_pages = (size % PAGE_SIZE) ? size / PAGE_SIZE : size / PAGE_SIZE + 1; // Number of pages we will use
+	int mem_avail = 0; // We could allocate new memory region or not?
 
 	/* First we must check if the amount of free memory in
 	 * virtual address space and physical address space is
@@ -132,11 +132,12 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 	 * */
 
 	/*my sol*/
+	proc->seg_table->size = 1 << SEGMENT_LEN;
 	int num_physical_page_avail = 0;
-	int *avail_physical_index = (int *)malloc(sizeof(int) * num_pages);
+	int *avail_physical_index = (int *)malloc(sizeof(int) * (num_pages + 1));
 	for (int i = 0; i < NUM_PAGES; i++)
 	{
-		if (_mem_stat[i].index == 0)
+		if (_mem_stat[i].proc == 0)
 		{ // this page is free
 			avail_physical_index[num_physical_page_avail] = i;
 			num_physical_page_avail++;
@@ -164,7 +165,7 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 		 * 	  valid. */
 		int loop = 0;
 
-		for (; loop < num_pages - 1; loop++)
+		for (; loop < num_pages; loop++)
 		{
 			_mem_stat[avail_physical_index[loop]].proc = proc->pid;
 			_mem_stat[avail_physical_index[loop]].index = loop;
@@ -173,21 +174,21 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 			addr_t first_lv = get_first_lv(proc->bp);
 			/* The second layer index */
 			addr_t second_lv = get_second_lv(proc->bp);
+			if (!proc->seg_table->table[first_lv].pages)
+			{
+				proc->seg_table->table[first_lv].pages = (struct page_table_t *)malloc(sizeof(struct page_table_t));
+				proc->seg_table->table[first_lv].pages->size = 1 << PAGE_LEN;
+			}
+			proc->seg_table->table[first_lv].v_index = first_lv;
+			proc->seg_table->table[first_lv].pages->table[second_lv].v_index = second_lv;
 			proc->seg_table->table[first_lv].pages->table[second_lv].p_index = avail_physical_index[loop];
 			proc->bp += PAGE_SIZE;
 		}
-		_mem_stat[avail_physical_index[loop]].proc = proc->pid;
-		_mem_stat[avail_physical_index[loop]].index = loop;
-		_mem_stat[avail_physical_index[loop]].next = -1;
-		/* The first layer index */
-		addr_t first_lv = get_first_lv(proc->bp);
-		/* The second layer index */
-		addr_t second_lv = get_second_lv(proc->bp);
-		proc->seg_table->table[first_lv].pages->table[second_lv].p_index = avail_physical_index[loop];
+		_mem_stat[avail_physical_index[loop - 1]].next = -1;
 		proc->bp += PAGE_SIZE;
 	}
 	pthread_mutex_unlock(&mem_lock);
-	free(avail_physical_index);
+	//free(avail_physical_index);
 	return ret_mem;
 }
 
@@ -201,20 +202,23 @@ int free_mem(addr_t address, struct pcb_t *proc)
 	 * 	  the process [proc].
 	 * 	- Remember to use lock to protect the memory from other
 	 * 	  processes.  */
+	//int i = 0;
 	pthread_mutex_lock(&mem_lock);
 	/* The first layer index */
 	addr_t first_lv = get_first_lv(address);
 	/* The second layer index */
 	addr_t second_lv = get_second_lv(address);
-
 	addr_t frame_index = proc->seg_table->table[first_lv].pages->table[second_lv].p_index;
-	while(1){
-		if(_mem_stat[frame_index].proc == 0) break;
+	while (1)
+	{
+		//i++;
+		//printf("frame_index: %d \n",frame_index);
 		_mem_stat[frame_index].proc = 0;
 		frame_index = _mem_stat[frame_index].next;
-		if(frame_index == -1) break;
-
+		if (frame_index == -1)
+			break;
 	}
+	//printf("freed %d frames \n",i);
 	pthread_mutex_unlock(&mem_lock);
 
 	return 0;
@@ -267,7 +271,6 @@ void dump(void)
 				 j < ((i + 1) << OFFSET_LEN) - 1;
 				 j++)
 			{
-
 				if (_ram[j] != 0)
 				{
 					printf("\t%05x: %02x\n", j, _ram[j]);
