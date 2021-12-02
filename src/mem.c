@@ -2,7 +2,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include <pthread.h>
-#include <stdio.h>"
+#include <stdio.h>
 
 static BYTE _ram[RAM_SIZE];
 
@@ -100,6 +100,7 @@ static int translate(
 			 * to [p_index] field of page_table->table[i] to 
 			 * produce the correct physical address and save it to
 			 * [*physical_addr] */
+			if(_mem_stat[page_table->table[i].p_index].proc == 0) return 0; // this frame is not available
 			*physical_addr = (page_table->table[i].p_index << OFFSET_LEN) + offset;
 			return 1;
 		}
