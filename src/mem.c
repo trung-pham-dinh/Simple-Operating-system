@@ -131,9 +131,11 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 	 * For virtual memory space, check bp (break pointer).
 	 * */
 
-	/*my sol*/
+	/* Checking if there are enough slots available*/
 	proc->seg_table->size = 1 << SEGMENT_LEN;
 	int num_physical_page_avail = 0;
+
+	/*array to store the index of available frame in physical memory*/
 	int *avail_physical_index = (int *)malloc(sizeof(int) * (num_pages + 1));
 	for (int i = 0; i < NUM_PAGES; i++)
 	{
@@ -150,7 +152,7 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 	}
 	if (proc->bp + num_pages * PAGE_SIZE >= RAM_SIZE)
 		mem_avail = 0; // not logical memory
-	/*my sol*/
+	/* end checking */
 	if (mem_avail)
 	{
 		/* We could allocate new memory region to the process */
@@ -167,6 +169,7 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 
 		for (; loop < num_pages; loop++)
 		{
+			/* update the _mem_stat */
 			_mem_stat[avail_physical_index[loop]].proc = proc->pid;
 			_mem_stat[avail_physical_index[loop]].index = loop;
 			_mem_stat[avail_physical_index[loop]].next = avail_physical_index[loop + 1];
@@ -174,18 +177,19 @@ addr_t alloc_mem(uint32_t size, struct pcb_t *proc)
 			addr_t first_lv = get_first_lv(proc->bp);
 			/* The second layer index */
 			addr_t second_lv = get_second_lv(proc->bp);
+			/* if the page haven't been initialized, then create it */
 			if (!proc->seg_table->table[first_lv].pages)
 			{
 				proc->seg_table->table[first_lv].pages = (struct page_table_t *)malloc(sizeof(struct page_table_t));
 				proc->seg_table->table[first_lv].pages->size = 1 << PAGE_LEN;
 			}
+			/* Update the page table fỏ further accesses */
 			proc->seg_table->table[first_lv].v_index = first_lv;
 			proc->seg_table->table[first_lv].pages->table[second_lv].v_index = second_lv;
 			proc->seg_table->table[first_lv].pages->table[second_lv].p_index = avail_physical_index[loop];
 			proc->bp += PAGE_SIZE;
 		}
-		_mem_stat[avail_physical_index[loop - 1]].next = -1;
-		proc->bp += PAGE_SIZE;
+		_mem_stat[avail_physical_index[loop - 1]].next = -1;	// the last element's next field is -1
 	}
 	pthread_mutex_unlock(&mem_lock);
 	//free(avail_physical_index);
@@ -202,23 +206,29 @@ int free_mem(addr_t address, struct pcb_t *proc)
 	 * 	  the process [proc].
 	 * 	- Remember to use lock to protect the memory from other
 	 * 	  processes.  */
-	//int i = 0;
 	pthread_mutex_lock(&mem_lock);
 	/* The first layer index */
 	addr_t first_lv = get_first_lv(address);
 	/* The second layer index */
 	addr_t second_lv = get_second_lv(address);
+	/* First frame to free */
 	addr_t frame_index = proc->seg_table->table[first_lv].pages->table[second_lv].p_index;
-	while (1)
+
+	int  allow_to_free = 1;
+	/* If the address not pointing to the first address of the allocated block*/
+	if(_mem_stat[frame_index].index != 0) allow_to_free = 0;
+	/* We also not allow to free other processes' memory */
+	if(_mem_stat[frame_index].proc != proc->pid) allow_to_free = 0;
+	/* Not to free the space that have not been allocated yet */
+	if(_mem_stat[frame_index].proc == 0) allow_to_free = 0;
+
+	while (allow_to_free)
 	{
-		//i++;
-		//printf("frame_index: %d \n",frame_index);
 		_mem_stat[frame_index].proc = 0;
 		frame_index = _mem_stat[frame_index].next;
 		if (frame_index == -1)
 			break;
 	}
-	//printf("freed %d frames \n",i);
 	pthread_mutex_unlock(&mem_lock);
 
 	return 0;
