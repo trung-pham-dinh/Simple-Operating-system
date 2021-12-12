@@ -231,7 +231,7 @@ int free_mem(addr_t address, struct pcb_t *proc)
 	}
 	pthread_mutex_unlock(&mem_lock);
 
-	return 0;
+	return allow_to_free;
 }
 
 int read_mem(addr_t address, struct pcb_t *proc, BYTE *data)
